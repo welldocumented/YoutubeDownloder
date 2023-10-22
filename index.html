@@ -1,0 +1,75 @@
+<html>
+<head>
+  <!-- ffmpeg.wasmを読み込むためのスクリプトタグを追加する -->
+  <script src="https://cdn.jsdelivr.net/npm/ffmpeg.wasm/dist/ffmpeg.min.js"></script>
+</head>
+<body>
+  <!-- 動画のURLを入力するテキストボックスを作る -->
+  <input type="text" id="video-url" placeholder="動画のURLを入力してください。">
+  <!-- ダウンロードボタンを作る -->
+  <button id="download-button">ダウンロード</button>
+  <!-- 結果を表示する要素を作る -->
+  <div id="result"></div>
+  <!-- JavaScriptのコードをスクリプトタグで囲む -->
+  <script>
+    // ffmpeg.wasmを読み込む
+    const ffmpeg = require('ffmpeg.wasm');
+
+    // ダウンロードボタンを取得する
+    const downloadButton = document.getElementById('download-button');
+
+    // ダウンロードボタンがクリックされたときの処理
+    downloadButton.addEventListener('click', async () => {
+      // 入力欄から動画のURLを取得する
+      const videoUrl = document.getElementById('video-url').value;
+
+      // URLが空でないかチェックする
+      if (videoUrl) {
+        // ダウンロードボタンを無効化する
+        downloadButton.disabled = true;
+
+        // ffmpeg.wasmを初期化する
+        await ffmpeg.init();
+
+        // 動画のURLからデータを取得する
+        const videoData = await fetch(videoUrl).then(res => res.arrayBuffer());
+
+        // 取得したデータをffmpeg.wasmに渡す
+        ffmpeg.FS('writeFile', 'input.mp4', videoData);
+
+        // 動画の形式や解像度などのオプションを設定する
+        // ここではMP4形式、720pの解像度に変換する例とする
+        const options = ['-i', 'input.mp4', '-c:v', 'libx264', '-preset', 'fast', '-crf', '22', '-vf', 'scale=-2:720', 'output.mp4'];
+
+        // ffmpeg.wasmで動画の変換を実行する
+        await ffmpeg.run(...options);
+
+        // 変換した動画データを取得する
+        const outputData = ffmpeg.FS('readFile', 'output.mp4');
+
+        // 取得したデータをBlobオブジェクトに変換する
+        const outputBlob = new Blob([outputData.buffer], { type: 'video/mp4' });
+
+        // BlobオブジェクトからURLを生成する
+        const outputUrl = URL.createObjectURL(outputBlob);
+
+        // aタグを作成してダウンロードリンクとして設定する
+        const a = document.createElement('a');
+        a.href = outputUrl;
+        a.download = 'output.mp4';
+        a.textContent = 'ダウンロード';
+
+        // aタグを表示する要素に追加する
+        const result = document.getElementById('result');
+        result.appendChild(a);
+
+        // ダウンロードボタンを有効化する
+        downloadButton.disabled = false;
+      } else {
+        // URLが空の場合はエラーメッセージを表示する
+        alert('動画のURLを入力してください。');
+      }
+    });
+  </script>
+</body>
+</html>
